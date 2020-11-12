@@ -41,6 +41,7 @@ public class BarcodeScanner extends CordovaPlugin {
     private static final String CANCELLED = "cancelled";
     private static final String FORMAT = "format";
     private static final String TEXT = "text";
+    private static final String BYTES = "bytes";
     private static final String DATA = "data";
     private static final String TYPE = "type";
     private static final String PREFER_FRONTCAMERA = "preferFrontCamera";
@@ -220,6 +221,12 @@ public class BarcodeScanner extends CordovaPlugin {
             if (resultCode == Activity.RESULT_OK) {
                 JSONObject obj = new JSONObject();
                 try {
+                    byte[] rawBytes = intent.getByteArrayExtra("SCAN_RESULT_BYTES");
+                    int[] arr = new int[rawBytes.length];
+                    for(int i = 0; i < rawBytes.length; i++)
+                        arr[i] = rawBytes[i] & 0xFF;
+
+                    obj.put(BYTES, new JSONArray(arr));
                     obj.put(TEXT, intent.getStringExtra("SCAN_RESULT"));
                     obj.put(FORMAT, intent.getStringExtra("SCAN_RESULT_FORMAT"));
                     obj.put(CANCELLED, false);
@@ -231,6 +238,7 @@ public class BarcodeScanner extends CordovaPlugin {
             } else if (resultCode == Activity.RESULT_CANCELED) {
                 JSONObject obj = new JSONObject();
                 try {
+                    obj.put(BYTES, new JSONArray());
                     obj.put(TEXT, "");
                     obj.put(FORMAT, "");
                     obj.put(CANCELLED, true);
