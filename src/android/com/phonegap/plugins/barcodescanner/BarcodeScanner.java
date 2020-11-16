@@ -230,6 +230,7 @@ public class BarcodeScanner extends CordovaPlugin {
                         test[i] = rawBytes[i];
                     }
 
+                    obj.put("test", new String(rawBytes));
                     obj.put("raw_bytes", new JSONArray(test));
                     obj.put(BYTES, new JSONArray(arr));
                     obj.put(TEXT, intent.getStringExtra("SCAN_RESULT"));
