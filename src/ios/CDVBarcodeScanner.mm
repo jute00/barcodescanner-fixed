@@ -250,12 +250,21 @@
 }
 
 //--------------------------------------------------------------------------
-- (void)returnSuccess:(NSString*)scannedText format:(NSString*)format cancelled:(BOOL)cancelled flipped:(BOOL)flipped callback:(NSString*)callback{
+- (void)returnSuccess:
+
+    (NSString*)scannedText
+    format:(NSString*)format
+    cancelled:(BOOL)cancelled
+    flipped:(BOOL)flipped
+    callback:(NSString*)callback
+
+{
     NSNumber* cancelledNumber = @(cancelled ? 1 : 0);
 
     NSMutableDictionary* resultDict = [NSMutableDictionary new];
     resultDict[@"text"] = scannedText;
     resultDict[@"format"] = format;
+    resultDict[@"bytes"] = @"123";
     resultDict[@"cancelled"] = cancelledNumber;
 
     CDVPluginResult* result = [CDVPluginResult
