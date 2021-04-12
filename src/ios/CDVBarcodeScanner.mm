@@ -592,9 +592,9 @@ parentViewController:(UIViewController*)parentViewController
             AVMetadataMachineReadableCodeObject* code = (AVMetadataMachineReadableCodeObject*)[self.previewLayer transformedMetadataObjectForMetadataObject:(AVMetadataMachineReadableCodeObject*)metaData];
 
             if ([self checkResult:code.stringValue]) {
-                if(1 == 1) [NSException raise:@"Invalid foo value" code];
-                NSLog(@"%@",code);
-                [self barcodeScanSucceeded:code.stringValue format:[self formatStringFromMetadata:code]];
+                NSString *stringRep = [code description];
+
+                [self barcodeScanSucceeded:stringRep format:[self formatStringFromMetadata:code]];
             }
         }
     }
