@@ -40,7 +40,7 @@
 - (void)scan:(CDVInvokedUrlCommand*)command;
 - (void)encode:(CDVInvokedUrlCommand*)command;
 - (void)returnImage:(NSString*)filePath format:(NSString*)format callback:(NSString*)callback;
-- (void)returnSuccess:(NSString*)scannedText format:(NSString*)format cancelled:(BOOL)cancelled flipped:(BOOL)flipped callback:(NSString*)callback;
+- (void)returnSuccess:(NSString*)scannedText format:(NSString*)format bytes:(NSData*)bytes  cancelled:(BOOL)cancelled flipped:(BOOL)flipped callback:(NSString*)callback;
 - (void)returnError:(NSString*)message callback:(NSString*)callback;
 @end
 
@@ -48,10 +48,10 @@
 // class that does the grunt work
 //------------------------------------------------------------------------------
 @interface CDVbcsProcessor : NSObject <AVCaptureMetadataOutputObjectsDelegate> {}
-@property (nonatomic, retain) CDVBarcodeScanner*           plugin;
+@property (nonatomic, retain) CDVBarcodeScanner*          plugin;
 @property (nonatomic, retain) NSString*                   callback;
 @property (nonatomic, retain) UIViewController*           parentViewController;
-@property (nonatomic, retain) CDVbcsViewController*        viewController;
+@property (nonatomic, retain) CDVbcsViewController*       viewController;
 @property (nonatomic, retain) AVCaptureSession*           captureSession;
 @property (nonatomic, retain) AVCaptureVideoPreviewLayer* previewLayer;
 @property (nonatomic, retain) NSString*                   alternateXib;
@@ -70,7 +70,7 @@
 
 - (id)initWithPlugin:(CDVBarcodeScanner*)plugin callback:(NSString*)callback parentViewController:(UIViewController*)parentViewController alterateOverlayXib:(NSString *)alternateXib;
 - (void)scanBarcode;
-- (void)barcodeScanSucceeded:(NSString*)text format:(NSString*)format;
+- (void)barcodeScanSucceeded:(NSString*)text format:(NSString*)format bytes:(NSData*) bytes;
 - (void)barcodeScanFailed:(NSString*)message;
 - (void)barcodeScanCancelled;
 - (void)openDialog;
@@ -250,13 +250,38 @@
 }
 
 //--------------------------------------------------------------------------
-- (void)returnSuccess:(NSString*)scannedText format:(NSString*)format cancelled:(BOOL)cancelled flipped:(BOOL)flipped callback:(NSString*)callback{
+- (void)returnSuccess:
+
+    (NSString*)scannedText
+    format:(NSString*)format
+    bytes:(NSData*)bytes
+    cancelled:(BOOL)cancelled
+    flipped:(BOOL)flipped
+    callback:(NSString*)callback
+
+{
     NSNumber* cancelledNumber = @(cancelled ? 1 : 0);
 
     NSMutableDictionary* resultDict = [NSMutableDictionary new];
     resultDict[@"text"] = scannedText;
     resultDict[@"format"] = format;
     resultDict[@"cancelled"] = cancelledNumber;
+
+    //----------------------------------------------------------------------------------
+    Byte buffer[[bytes length]];
+    [bytes getBytes:buffer length:[bytes length]];
+
+    NSInteger count = 0;
+    NSMutableArray * arr = [[NSMutableArray alloc] initWithCapacity: [bytes length]];
+
+    while(count < [bytes length]) {
+        [arr addObject: [NSNumber numberWithInt:buffer[count]]];
+        count++;
+    }
+
+    [resultDict setObject:arr forKey:@"bytes"];
+   //----------------------------------------------------------------------------------
+
 
     CDVPluginResult* result = [CDVPluginResult
                                resultWithStatus: CDVCommandStatus_OK
@@ -415,13 +440,13 @@ parentViewController:(UIViewController*)parentViewController
 }
 
 //--------------------------------------------------------------------------
-- (void)barcodeScanSucceeded:(NSString*)text format:(NSString*)format {
+- (void)barcodeScanSucceeded:(NSString*)text format:(NSString*)format bytes:(NSData*)bytes {
     dispatch_sync(dispatch_get_main_queue(), ^{
         if (self.isSuccessBeepEnabled) {
             AudioServicesPlaySystemSound(_soundFileObject);
         }
         [self barcodeScanDone:^{
-            [self.plugin returnSuccess:text format:format cancelled:FALSE flipped:FALSE callback:self.callback];
+            [self.plugin returnSuccess:text format:format bytes:bytes cancelled:FALSE flipped:FALSE callback:self.callback];
         }];
     });
 }
@@ -443,7 +468,7 @@ parentViewController:(UIViewController*)parentViewController
 //--------------------------------------------------------------------------
 - (void)barcodeScanCancelled {
     [self barcodeScanDone:^{
-        [self.plugin returnSuccess:@"" format:@"" cancelled:TRUE flipped:self.isFlipped callback:self.callback];
+        [self.plugin returnSuccess:@"" format:@"" bytes:nil cancelled:TRUE flipped:self.isFlipped callback:self.callback];
     }];
     if (self.isFlipped) {
         self.isFlipped = NO;
@@ -583,7 +608,14 @@ parentViewController:(UIViewController*)parentViewController
             AVMetadataMachineReadableCodeObject* code = (AVMetadataMachineReadableCodeObject*)[self.previewLayer transformedMetadataObjectForMetadataObject:(AVMetadataMachineReadableCodeObject*)metaData];
 
             if ([self checkResult:code.stringValue]) {
-                [self barcodeScanSucceeded:code.stringValue format:[self formatStringFromMetadata:code]];
+
+                NSString * internal = [metaData valueForKey:@"_internal"];
+
+                NSString * basicDescriptor = [internal valueForKey:@"basicDescriptor"];
+
+                NSData * bytes = (NSData*)[basicDescriptor valueForKey:@"BarcodeRawData"];
+
+                [self barcodeScanSucceeded:code.stringValue format:[self formatStringFromMetadata:code] bytes:bytes];
             }
         }
     }
